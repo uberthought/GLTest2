@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/activity_main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context="com.example.philip.gltest2.MainActivity"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:orientation="horizontal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <Button
+            android:text="Original"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:id="@+id/original"
+            android:layout_weight="1" />
+
+        <Button
+            android:text="Sobel Edge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:id="@+id/sobelEdge"
+            android:layout_weight="1" />
+    </LinearLayout>
+</LinearLayout>
