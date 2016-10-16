@@ -7,7 +7,9 @@ import android.graphics.BitmapFactory;
 import android.opengl.GLES20;
 import android.opengl.GLSurfaceView;
 import android.opengl.GLUtils;
+import android.opengl.Matrix;
 import android.util.Log;
+import android.util.Size;
 
 import java.io.InputStream;
 import java.nio.ByteBuffer;
@@ -17,37 +19,36 @@ import java.nio.FloatBuffer;
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
 
-public class OpenGLRenderer implements GLSurfaceView.Renderer {
+class OpenGLRenderer implements GLSurfaceView.Renderer {
 
-    // Replace the implementation of this method to do your own custom drawing.
+    private static String TAG = "OpenGLRenderer";
     private final float[] _squareVertices = {
             -1.0f, 1.0f,
             1.0f, 1.0f,
             -1.0f, -1.0f,
             1.0f, -1.0f,
     };
-
     private final float[] _textureVertices = {
             0.0f, 0.0f,
             1.0f, 0.0f,
             0.0f, 1.0f,
             1.0f, 1.0f,
     };
+    private float[] viewMatrix = new float[16];
+    private Size viewportSize;
+    private Size bitmapSize;
 
     private FloatBuffer _squareVerticesBuffer;
     private FloatBuffer _textureVerticesBuffer;
-
     private int _program;
     private int _programSobelEdge;
     private int _currentProgram;
     private int _textureId;
     private int _aPositionHandle;
     private int _aTextureHandle;
-
     private Context _context;
-    private static String TAG = "OpenGLRenderer";
 
-    public OpenGLRenderer(Context context) {
+    OpenGLRenderer(Context context) {
         _context = context;
         _squareVerticesBuffer = ByteBuffer.allocateDirect(_squareVertices.length * 4).order(ByteOrder.nativeOrder()).asFloatBuffer();
         _squareVerticesBuffer.put(_squareVertices).position(0);
@@ -55,11 +56,11 @@ public class OpenGLRenderer implements GLSurfaceView.Renderer {
         _textureVerticesBuffer.put(_textureVertices).position(0);
     }
 
-    public void useCopyShader() {
+    void useCopyShader() {
         _currentProgram = _program;
     }
 
-    public void useSobelEdgeShader() {
+    void useSobelEdgeShader() {
         _currentProgram = _programSobelEdge;
     }
 
@@ -69,6 +70,12 @@ public class OpenGLRenderer implements GLSurfaceView.Renderer {
         GLES20.glUseProgram(_currentProgram);
         checkGlError("glUseProgram");
 
+        int modelViewMatId = GLES20.glGetUniformLocation(_currentProgram, "modelViewMat");
+        checkGlError("glGetUniformLocation modelViewMat");
+        if (modelViewMatId != -1) {
+            GLES20.glUniformMatrix4fv(modelViewMatId, 1, false, viewMatrix, 0);
+            checkGlError("glUniformMatrix4fv modelViewMatId");
+        }
 
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, _textureId);
@@ -88,25 +95,41 @@ public class OpenGLRenderer implements GLSurfaceView.Renderer {
 
     public void onSurfaceChanged(GL10 glUnused, int width, int height) {
         GLES20.glViewport(0, 0, width, height);
+        viewportSize = new Size(width, height);
+        updateViewMatrix();
     }
 
-    public String resourceToString(int resourceId) {
-        String s = new String();
+    private void updateViewMatrix() {
+        Matrix.setIdentityM(viewMatrix, 0);
+
+        float viewportAspect = (float) viewportSize.getWidth() / (float) viewportSize.getHeight();
+        float bitmapAspect = (float) bitmapSize.getWidth() / (float) bitmapSize.getHeight();
+        float aspectRatio = bitmapAspect / viewportAspect;
+        if (aspectRatio < 1f)
+            Matrix.scaleM(viewMatrix, 0, aspectRatio, 1f, 1f);
+        else
+            Matrix.scaleM(viewMatrix, 0, 1f, 1f / aspectRatio, 1f);
+    }
+
+    private String resourceToString(int resourceId) {
         try {
             Resources res = _context.getResources();
             InputStream in_s = res.openRawResource(resourceId);
 
             byte[] b = new byte[in_s.available()];
             in_s.read(b);
-            s = new String(b);
+            return new String(b);
         } catch (Exception e) {
             e.printStackTrace();
         }
 
-        return s;
+        return null;
     }
 
     public void onSurfaceCreated(GL10 glUnused, EGLConfig config) {
+        Bitmap bitmap = BitmapFactory.decodeResource(_context.getResources(), R.drawable.testimage);
+        bitmapSize = new Size(bitmap.getWidth(), bitmap.getHeight());
+
         String vertexShader = resourceToString(R.raw.vertexshader);
         String fragmentShader = resourceToString(R.raw.fragmentshader);
 
@@ -114,6 +137,7 @@ public class OpenGLRenderer implements GLSurfaceView.Renderer {
         if (_program == 0) {
             return;
         }
+
         _aPositionHandle = GLES20.glGetAttribLocation(_program, "aPosition");
         checkGlError("glGetAttribLocation aPosition");
         if (_aPositionHandle == -1) {
@@ -124,6 +148,8 @@ public class OpenGLRenderer implements GLSurfaceView.Renderer {
         if (_aTextureHandle == -1) {
             throw new RuntimeException("Could not get attrib location for aTextureCoord");
         }
+
+        _currentProgram = _program;
 
         String sobelEdgeShader = resourceToString(R.raw.sobeledgeshader);
         _programSobelEdge = createProgram(vertexShader, sobelEdgeShader);
@@ -142,9 +168,6 @@ public class OpenGLRenderer implements GLSurfaceView.Renderer {
             throw new RuntimeException("Could not get attrib location for aTextureCoord");
         }
 
-        _currentProgram = _program;
-
-
         // Create our texture. This has to be done each time the surface is created.
         int[] textures = new int[1];
         GLES20.glGenTextures(1, textures, 0);
@@ -157,12 +180,6 @@ public class OpenGLRenderer implements GLSurfaceView.Renderer {
 
         GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_REPEAT);
         GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_REPEAT);
-
-//        BitmapFactory.Options options = new BitmapFactory.Options();
-//        options.outWidth = 320;
-//        options.outHeight = 480;
-//        Bitmap bitmap = BitmapFactory.decodeResource(_context.getResources(), R.drawable.testimage, options);
-        Bitmap bitmap = BitmapFactory.decodeResource(_context.getResources(), R.drawable.testimage);
 
         GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, bitmap, 0);
         float stepWidth = 1.0f / bitmap.getWidth();
