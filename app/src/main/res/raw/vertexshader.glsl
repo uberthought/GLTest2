@@ -5,7 +5,6 @@ uniform mat4 modelViewMat;
 
 
 void main() {
-//	gl_Position = aPosition;
 	gl_Position = modelViewMat * aPosition;
 	vTextureCoord = aTextureCoord.xy;
 }
