@@ -46,6 +46,7 @@ class OpenGLRenderer implements GLSurfaceView.Renderer {
     private int _program;
     private int _programSobelEdge;
     private int _currentProgram;
+    private int[] textures = new int[1];
     private int _textureId;
     private int _aPositionHandle;
     private int _aTextureHandle;
@@ -167,19 +168,6 @@ class OpenGLRenderer implements GLSurfaceView.Renderer {
             throw new RuntimeException("Could not get attrib location for aTextureCoord");
         }
 
-        // Create our texture. This has to be done each time the surface is created.
-        int[] textures = new int[1];
-        GLES20.glGenTextures(1, textures, 0);
-
-        _textureId = textures[0];
-        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, _textureId);
-
-        GLES20.glTexParameterf(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_NEAREST);
-        GLES20.glTexParameterf(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR);
-
-        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_REPEAT);
-        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_REPEAT);
-
         Bitmap bitmap = BitmapFactory.decodeResource(_context.getResources(), R.drawable.testimage);
         setBitmap(bitmap);
     }
@@ -242,6 +230,7 @@ class OpenGLRenderer implements GLSurfaceView.Renderer {
     void setImage(Uri imageUri) {
         try {
             Bitmap bitmap = MediaStore.Images.Media.getBitmap(_context.getContentResolver(), imageUri);
+            bitmap = BitmapFactory.decodeResource(_context.getResources(), R.drawable.testimage2);
             setBitmap(bitmap);
         } catch (IOException e) {
             e.printStackTrace();
@@ -249,12 +238,24 @@ class OpenGLRenderer implements GLSurfaceView.Renderer {
     }
 
     private void setBitmap(Bitmap bitmap) {
+
         bitmapSize = new Size(bitmap.getWidth(), bitmap.getHeight());
 
+        // Create our texture. This has to be done each time the surface is created.
+        GLES20.glGenTextures(1, textures, 0);
+
+        _textureId = textures[0];
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, _textureId);
+
+        GLES20.glTexParameterf(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_NEAREST);
+        GLES20.glTexParameterf(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR);
+
+        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_REPEAT);
+        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_REPEAT);
+
         GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, bitmap, 0);
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0);
-        bitmap.recycle();
+//        bitmap.recycle();
 
         float stepWidth = 1.0f / bitmapSize.getWidth();
         float stepHeight = 1.0f / bitmapSize.getWidth();
