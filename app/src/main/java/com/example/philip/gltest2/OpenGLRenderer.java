@@ -40,9 +40,12 @@ class OpenGLRenderer implements GLSurfaceView.Renderer {
     private float[] viewMatrix = new float[16];
     private Size viewportSize;
     private Size bitmapSize;
+    private Bitmap bitmap;
+    private boolean newBitmap = true;
 
     private FloatBuffer _squareVerticesBuffer;
     private FloatBuffer _textureVerticesBuffer;
+    private FloatBuffer offsetBuffer;
     private int _program;
     private int _programSobelEdge;
     private int _currentProgram;
@@ -69,10 +72,22 @@ class OpenGLRenderer implements GLSurfaceView.Renderer {
     }
 
     public void onDrawFrame(GL10 glUnused) {
+        if (newBitmap) {
+            newBitmap = false;
+            GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, bitmap, 0);
+        }
+
         GLES20.glClearColor(0.0f, 0.0f, 1.0f, 1.0f);
         GLES20.glClear(GLES20.GL_DEPTH_BUFFER_BIT | GLES20.GL_COLOR_BUFFER_BIT);
         GLES20.glUseProgram(_currentProgram);
         checkGlError("glUseProgram");
+
+        int offsetId = GLES20.glGetUniformLocation(_currentProgram, "offset");
+        checkGlError("glGetUniformLocation offset");
+        if (offsetId != -1) {
+            GLES20.glUniform2fv(offsetId, 9, offsetBuffer);
+            checkGlError("glUniform2fv offsetId");
+        }
 
         int modelViewMatId = GLES20.glGetUniformLocation(_currentProgram, "modelViewMat");
         checkGlError("glGetUniformLocation modelViewMat");
@@ -114,21 +129,6 @@ class OpenGLRenderer implements GLSurfaceView.Renderer {
             Matrix.scaleM(viewMatrix, 0, 1f, 1f / aspectRatio, 1f);
     }
 
-    private String resourceToString(int resourceId) {
-        try {
-            Resources res = _context.getResources();
-            InputStream in_s = res.openRawResource(resourceId);
-
-            byte[] b = new byte[in_s.available()];
-            in_s.read(b);
-            return new String(b);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-        return null;
-    }
-
     public void onSurfaceCreated(GL10 glUnused, EGLConfig config) {
         String vertexShader = resourceToString(R.raw.vertexshader);
         String fragmentShader = resourceToString(R.raw.fragmentshader);
@@ -168,8 +168,54 @@ class OpenGLRenderer implements GLSurfaceView.Renderer {
             throw new RuntimeException("Could not get attrib location for aTextureCoord");
         }
 
-        Bitmap bitmap = BitmapFactory.decodeResource(_context.getResources(), R.drawable.testimage);
-        setBitmap(bitmap);
+        // Create our texture. This has to be done each time the surface is created.
+        GLES20.glGenTextures(1, textures, 0);
+
+        _textureId = textures[0];
+        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, _textureId);
+
+        GLES20.glTexParameterf(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_NEAREST);
+        GLES20.glTexParameterf(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR);
+
+        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_REPEAT);
+        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_REPEAT);
+
+        if (bitmap == null) {
+            bitmap = BitmapFactory.decodeResource(_context.getResources(), R.drawable.testimage);
+            setBitmap(bitmap);
+        }
+    }
+
+    void setImage(Uri imageUri) {
+        try {
+            bitmap = MediaStore.Images.Media.getBitmap(_context.getContentResolver(), imageUri);
+            setBitmap(bitmap);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void setBitmap(Bitmap bitmap) {
+
+        newBitmap = true;
+        bitmapSize = new Size(bitmap.getWidth(), bitmap.getHeight());
+
+        float stepWidth = 1.0f / bitmapSize.getWidth();
+        float stepHeight = 1.0f / bitmapSize.getWidth();
+
+        float[] offsets = {
+                -stepWidth, -stepHeight,
+                -stepWidth, 0.0f,
+                -stepWidth, stepHeight,
+                0.0f, -stepHeight,
+                0.0f, 0.0f,
+                0.0f, stepHeight,
+                stepWidth, -stepHeight,
+                stepWidth, 0.0f,
+                stepWidth, stepHeight,
+        };
+        offsetBuffer = ByteBuffer.allocateDirect(offsets.length * 4).order(ByteOrder.nativeOrder()).asFloatBuffer();
+        offsetBuffer.put(offsets).position(0);
     }
 
     private int loadShader(int shaderType, String source) {
@@ -222,64 +268,25 @@ class OpenGLRenderer implements GLSurfaceView.Renderer {
     private void checkGlError(String op) {
         int error;
         while ((error = GLES20.glGetError()) != GLES20.GL_NO_ERROR) {
-            Log.e(TAG, op + ": glError " + error);
+            Log.e(TAG, op + ": glError " + GLUtils.getEGLErrorString(error));
             throw new RuntimeException(op + ": glError " + error);
         }
     }
 
-    void setImage(Uri imageUri) {
+    private String resourceToString(int resourceId) {
         try {
-            Bitmap bitmap = MediaStore.Images.Media.getBitmap(_context.getContentResolver(), imageUri);
-            bitmap = BitmapFactory.decodeResource(_context.getResources(), R.drawable.testimage2);
-            setBitmap(bitmap);
-        } catch (IOException e) {
+            Resources res = _context.getResources();
+            InputStream in_s = res.openRawResource(resourceId);
+
+            byte[] b = new byte[in_s.available()];
+            in_s.read(b);
+            return new String(b);
+        } catch (Exception e) {
             e.printStackTrace();
         }
+
+        return null;
     }
 
-    private void setBitmap(Bitmap bitmap) {
-
-        bitmapSize = new Size(bitmap.getWidth(), bitmap.getHeight());
-
-        // Create our texture. This has to be done each time the surface is created.
-        GLES20.glGenTextures(1, textures, 0);
-
-        _textureId = textures[0];
-        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, _textureId);
-
-        GLES20.glTexParameterf(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_NEAREST);
-        GLES20.glTexParameterf(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR);
-
-        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_REPEAT);
-        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_REPEAT);
-
-        GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, bitmap, 0);
-        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0);
-//        bitmap.recycle();
-
-        float stepWidth = 1.0f / bitmapSize.getWidth();
-        float stepHeight = 1.0f / bitmapSize.getWidth();
-
-        float[] offsets = {
-                -stepWidth, -stepHeight,
-                -stepWidth, 0.0f,
-                -stepWidth, stepHeight,
-                0.0f, -stepHeight,
-                0.0f, 0.0f,
-                0.0f, stepHeight,
-                stepWidth, -stepHeight,
-                stepWidth, 0.0f,
-                stepWidth, stepHeight,
-        };
-        FloatBuffer offsetBuffer = ByteBuffer.allocateDirect(offsets.length * 4).order(ByteOrder.nativeOrder()).asFloatBuffer();
-        offsetBuffer.put(offsets).position(0);
-        int offsetId = GLES20.glGetUniformLocation(_programSobelEdge, "offset");
-        checkGlError("glGetUniformLocation offset");
-        if (offsetId != -1) {
-            GLES20.glUseProgram(_programSobelEdge);
-            GLES20.glUniform2fv(offsetId, 9, offsetBuffer);
-            checkGlError("glUniform2fv offsetId");
-        }
-    }
 }
 
