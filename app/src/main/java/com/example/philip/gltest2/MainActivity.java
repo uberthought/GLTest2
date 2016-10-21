@@ -4,6 +4,7 @@ import android.content.Intent;
 import android.net.Uri;
 import android.opengl.GLSurfaceView;
 import android.os.Bundle;
+import android.provider.MediaStore;
 import android.support.v7.app.AppCompatActivity;
 import android.widget.Button;
 import android.widget.LinearLayout;
@@ -41,9 +42,8 @@ public class MainActivity extends AppCompatActivity {
         pickImageButton.setOnClickListener(v -> {
             Intent gallery =
                     new Intent(Intent.ACTION_PICK,
-                            android.provider.MediaStore.Images.Media.INTERNAL_CONTENT_URI);
+                            MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
             startActivityForResult(gallery, PICK_IMAGE);
-
         });
     }
 
