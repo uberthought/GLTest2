@@ -18,6 +18,7 @@ import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
+import java.util.concurrent.ConcurrentLinkedDeque;
 
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
@@ -41,7 +42,6 @@ class OpenGLRenderer implements GLSurfaceView.Renderer {
     private Size viewportSize;
     private Size bitmapSize;
     private Bitmap bitmap;
-    private boolean newBitmap = true;
 
     private FloatBuffer _squareVerticesBuffer;
     private FloatBuffer _textureVerticesBuffer;
@@ -54,6 +54,7 @@ class OpenGLRenderer implements GLSurfaceView.Renderer {
     private int _aPositionHandle;
     private int _aTextureHandle;
     private Context _context;
+    private ConcurrentLinkedDeque<Runnable> runableDeque = new ConcurrentLinkedDeque<>();
 
     OpenGLRenderer(Context context) {
         _context = context;
@@ -72,11 +73,14 @@ class OpenGLRenderer implements GLSurfaceView.Renderer {
     }
 
     public void onDrawFrame(GL10 glUnused) {
-        if (newBitmap) {
-            newBitmap = false;
-            GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, bitmap, 0);
+        while (!runableDeque.isEmpty()) {
+            Runnable runnable = runableDeque.removeFirst();
+            try {
+                runnable.run();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
-
         GLES20.glClearColor(0.0f, 0.0f, 1.0f, 1.0f);
         GLES20.glClear(GLES20.GL_DEPTH_BUFFER_BIT | GLES20.GL_COLOR_BUFFER_BIT);
         GLES20.glUseProgram(_currentProgram);
@@ -197,7 +201,8 @@ class OpenGLRenderer implements GLSurfaceView.Renderer {
 
     private void setBitmap(Bitmap bitmap) {
 
-        newBitmap = true;
+        executeOnOpenGLThread(() -> GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, bitmap, 0));
+
         bitmapSize = new Size(bitmap.getWidth(), bitmap.getHeight());
 
         float stepWidth = 1.0f / bitmapSize.getWidth();
@@ -288,5 +293,8 @@ class OpenGLRenderer implements GLSurfaceView.Renderer {
         return null;
     }
 
+    private void executeOnOpenGLThread(Runnable func) {
+        runableDeque.addLast(func);
+    }
 }
 

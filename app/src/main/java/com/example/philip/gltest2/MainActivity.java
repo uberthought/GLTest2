@@ -31,11 +31,9 @@ public class MainActivity extends AppCompatActivity {
         layout.addView(mGLSurfaceView);
 
         Button originalButton = (Button) findViewById(R.id.original);
-
-        originalButton.setOnClickListener(v -> mOpenGLRenderer.useCopyShader());
-
         Button sobelEdgeButton = (Button) findViewById(R.id.sobelEdge);
 
+        originalButton.setOnClickListener(v -> mOpenGLRenderer.useCopyShader());
         sobelEdgeButton.setOnClickListener(v -> mOpenGLRenderer.useSobelEdgeShader());
 
         Button pickImageButton = (Button) findViewById(R.id.pickImage);
