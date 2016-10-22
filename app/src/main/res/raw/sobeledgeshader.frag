@@ -27,6 +27,10 @@ void main(void)
 
     gl_FragColor.rgb = sqrt((horizEdge.rgb * horizEdge.rgb) + 
                             (vertEdge.rgb * vertEdge.rgb));
+
+     vec3 grayScaleWeights = vec3(0.3, 0.59, 0.11);
+     float grayScaleValue = dot(gl_FragColor.rgb, grayScaleWeights);
+     gl_FragColor.rgb = vec3(grayScaleValue, grayScaleValue, grayScaleValue);
     gl_FragColor.a = 1.0;
 }
 
