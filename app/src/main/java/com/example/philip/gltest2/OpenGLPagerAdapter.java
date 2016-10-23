@@ -26,15 +26,7 @@ class OpenGLPagerAdapter extends FragmentStatePagerAdapter {
             fragment = new OpenGLPagerFragment();
 
             Bundle bundle = new Bundle();
-            switch (position) {
-                default:
-                case 0:
-                    bundle.putInt("program", OpenGLRenderer.Shader.Copy.ordinal());
-                    break;
-                case 1:
-                    bundle.putInt("program", OpenGLRenderer.Shader.SobelEdge.ordinal());
-                    break;
-            }
+            bundle.putInt("program", shaderFromPosition(position).ordinal());
             fragment.setArguments(bundle);
 
             mFragments.put(position, fragment);
@@ -45,12 +37,34 @@ class OpenGLPagerAdapter extends FragmentStatePagerAdapter {
 
     @Override
     public int getCount() {
-        return 2;
+        return 3;
     }
 
     @Override
     public CharSequence getPageTitle(int position) {
-        return "Position " + Integer.toString(position);
+        OpenGLPagerFragment fragment = mFragments.get(position);
+
+        switch (shaderFromPosition(position)) {
+            default:
+            case Copy:
+                return "Original";
+            case SobelEdge:
+                return "Sobel Edge";
+            case GrayScale:
+                return "Gray Scale";
+        }
+    }
+
+    private GrayScaleRenderer.Shader shaderFromPosition(int position) {
+        switch (position) {
+            default:
+            case 0:
+                return RendererBase.Shader.Copy;
+            case 1:
+                return RendererBase.Shader.SobelEdge;
+            case 2:
+                return RendererBase.Shader.GrayScale;
+        }
     }
 
     void setImage(Uri imageUri) {

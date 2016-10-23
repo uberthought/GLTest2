@@ -11,7 +11,7 @@ import android.view.ViewGroup;
 
 public class OpenGLPagerFragment extends Fragment {
 
-    private OpenGLRenderer mOpenGLRenderer;
+    private RendererBase mOpenGLRenderer;
 
     @Nullable
     @Override
@@ -19,9 +19,20 @@ public class OpenGLPagerFragment extends Fragment {
         ViewGroup rootView = (ViewGroup) inflater.inflate(R.layout.screen_slide_pager_fragment, container, false);
 
         Bundle bundle = getArguments();
-        OpenGLRenderer.Shader program = OpenGLRenderer.Shader.values()[bundle.getInt("program")];
+        GrayScaleRenderer.Shader program = RendererBase.Shader.values()[bundle.getInt("program")];
 
-        mOpenGLRenderer = new OpenGLRenderer(getContext(), program);
+        switch (program) {
+            default:
+            case Copy:
+                mOpenGLRenderer = new CopyRenderer(getContext());
+                break;
+            case SobelEdge:
+                mOpenGLRenderer = new SobelEdgeRenderer(getContext());
+                break;
+            case GrayScale:
+                mOpenGLRenderer = new GrayScaleRenderer(getContext());
+                break;
+        }
 
         GLSurfaceView glSurfaceView = new GLSurfaceView(getContext());
         glSurfaceView.setEGLContextClientVersion(2);
