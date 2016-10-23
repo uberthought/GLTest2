@@ -32,13 +32,11 @@ abstract class RendererBase implements GLSurfaceView.Renderer {
     private final FloatBuffer _textureVerticesBuffer;
     private final int[] mTextures = new int[1];
     private final ConcurrentLinkedDeque<Runnable> runnableDeque = new ConcurrentLinkedDeque<>();
-    int _aPositionHandle;
-    int _aTextureHandle;
+    protected FloatBuffer offsetBuffer;
     int currentProgram;
     private Size viewportSize;
     private Size bitmapSize;
     private Bitmap bitmap;
-    private FloatBuffer offsetBuffer;
 
     RendererBase(Context context) {
         mContext = context;
@@ -187,28 +185,27 @@ abstract class RendererBase implements GLSurfaceView.Renderer {
         GLES20.glUseProgram(currentProgram);
         checkGlError("glUseProgram");
 
-        int offsetId = GLES20.glGetUniformLocation(currentProgram, "offset");
-        checkGlError("glGetUniformLocation offset");
-        if (offsetId != -1) {
-            GLES20.glUniform2fv(offsetId, 9, offsetBuffer);
-            checkGlError("glUniform2fv offsetId");
-        }
+        onDrawFrame();
 
-        int modelViewMatId = GLES20.glGetUniformLocation(currentProgram, "modelViewMat");
+        int modelViewMatrixHandle = GLES20.glGetUniformLocation(currentProgram, "modelViewMat");
         checkGlError("glGetUniformLocation modelViewMat");
-        if (modelViewMatId != -1) {
-            GLES20.glUniformMatrix4fv(modelViewMatId, 1, false, viewMatrix, 0);
-            checkGlError("glUniformMatrix4fv modelViewMatId");
+        if (modelViewMatrixHandle != -1) {
+            GLES20.glUniformMatrix4fv(modelViewMatrixHandle, 1, false, viewMatrix, 0);
+            checkGlError("glUniformMatrix4fv modelViewMatrixHandle");
         }
 
-        GLES20.glVertexAttribPointer(_aPositionHandle, 2, GLES20.GL_FLOAT, false, 0, _squareVerticesBuffer);
-        checkGlError("glVertexAttribPointer maPosition");
-        GLES20.glEnableVertexAttribArray(_aPositionHandle);
+        int positionHandle = GLES20.glGetAttribLocation(currentProgram, "aPosition");
+        checkGlError("glGetAttribLocation aPosition");
+        GLES20.glVertexAttribPointer(positionHandle, 2, GLES20.GL_FLOAT, false, 0, _squareVerticesBuffer);
+        checkGlError("glVertexAttribPointer positionHandle");
+        GLES20.glEnableVertexAttribArray(positionHandle);
         checkGlError("glEnableVertexAttribArray maPositionHandle");
 
-        GLES20.glVertexAttribPointer(_aTextureHandle, 2, GLES20.GL_FLOAT, false, 0, _textureVerticesBuffer);
-        checkGlError("glVertexAttribPointer maTextureHandle");
-        GLES20.glEnableVertexAttribArray(_aTextureHandle);
+        int textureHandle = GLES20.glGetAttribLocation(currentProgram, "aTextureCoord");
+        checkGlError("glGetAttribLocation aTextureCoord");
+        GLES20.glVertexAttribPointer(textureHandle, 2, GLES20.GL_FLOAT, false, 0, _textureVerticesBuffer);
+        checkGlError("glVertexAttribPointer textureHandle");
+        GLES20.glEnableVertexAttribArray(textureHandle);
         checkGlError("glEnableVertexAttribArray maTextureHandle");
 
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, mTextures[0]);
@@ -235,6 +232,8 @@ abstract class RendererBase implements GLSurfaceView.Renderer {
     }
 
     public void onSurfaceCreated(GL10 glUnused, EGLConfig config) {
+        onSurfaceCreated(config);
+
         // Create our texture. This has to be done each time the surface is created.
         GLES20.glGenTextures(1, mTextures, 0);
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, mTextures[0]);
@@ -249,6 +248,11 @@ abstract class RendererBase implements GLSurfaceView.Renderer {
             bitmap = BitmapFactory.decodeResource(mContext.getResources(), R.drawable.testimage);
             setBitmap(bitmap);
         }
+    }
+
+    abstract void onSurfaceCreated(EGLConfig config);
+
+    public void onDrawFrame() {
     }
 
     enum Shader {

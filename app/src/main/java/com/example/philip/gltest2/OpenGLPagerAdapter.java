@@ -1,6 +1,5 @@
 package com.example.philip.gltest2;
 
-import android.annotation.SuppressLint;
 import android.net.Uri;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
@@ -12,7 +11,6 @@ import java.util.Map;
 
 class OpenGLPagerAdapter extends FragmentStatePagerAdapter {
 
-    @SuppressLint("UseSparseArrays")
     private final Map<Integer, OpenGLPagerFragment> mFragments = new HashMap<>();
 
     OpenGLPagerAdapter(FragmentManager fm) {
@@ -42,7 +40,6 @@ class OpenGLPagerAdapter extends FragmentStatePagerAdapter {
 
     @Override
     public CharSequence getPageTitle(int position) {
-        OpenGLPagerFragment fragment = mFragments.get(position);
 
         switch (shaderFromPosition(position)) {
             default:
