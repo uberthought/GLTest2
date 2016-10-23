@@ -11,6 +11,7 @@ import android.widget.Button;
 public class MainActivity extends AppCompatActivity {
 
     private static final int PICK_IMAGE = 100;
+    Uri imageUri;
     private OpenGLPagerAdapter mPagerAdapter;
 
     @Override
@@ -37,9 +38,12 @@ public class MainActivity extends AppCompatActivity {
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (resultCode == RESULT_OK && requestCode == PICK_IMAGE) {
-            Uri imageUri = data.getData();
+            imageUri = data.getData();
             mPagerAdapter.setImage(imageUri);
         }
     }
 
+    public Uri getImageUri() {
+        return imageUri;
+    }
 }

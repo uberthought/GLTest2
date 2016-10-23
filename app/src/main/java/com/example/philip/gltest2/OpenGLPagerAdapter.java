@@ -2,6 +2,7 @@ package com.example.philip.gltest2;
 
 import android.annotation.SuppressLint;
 import android.net.Uri;
+import android.os.Bundle;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentStatePagerAdapter;
@@ -35,10 +36,17 @@ class OpenGLPagerAdapter extends FragmentStatePagerAdapter {
                     break;
             }
 
-            fragment.setImage(bitmapSource);
-
             mFragments.put(position, fragment);
         }
+
+        Bundle bundle = new Bundle();
+        if (bitmapSource != null)
+            bundle.putString("bitmapSource", bitmapSource.toString());
+        else
+            bundle.putString("bitmapSource", null);
+        fragment.setArguments(bundle);
+
+        fragment.setImage(bitmapSource);
 
         return fragment;
     }

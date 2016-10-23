@@ -1,5 +1,6 @@
 package com.example.philip.gltest2;
 
+import android.content.Context;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.net.Uri;
@@ -63,7 +64,19 @@ abstract public class BasePagerFragment extends Fragment implements GLSurfaceVie
     }
 
     @Override
+    public void onAttach(Context context) {
+        super.onAttach(context);
+        MainActivity activity = (MainActivity) getActivity();
+        bitmapSource = activity.getImageUri();
+    }
+
+    @Override
     public void onSurfaceCreated(GL10 gl, EGLConfig config) {
+
+        Bundle bundle = getArguments();
+        String foo = bundle.getString("bitmapSource");
+
+
         onSurfaceCreated(config);
 
         // Create our texture. This has to be done each time the surface is created.
@@ -79,8 +92,8 @@ abstract public class BasePagerFragment extends Fragment implements GLSurfaceVie
         if (bitmap == null) {
             if (bitmapSource != null)
                 setImage(bitmapSource);
-            else
-                clearImage();
+//            else
+//                clearImage();
         }
     }
 
@@ -116,8 +129,8 @@ abstract public class BasePagerFragment extends Fragment implements GLSurfaceVie
             }
         }
 
-//        if (bitmapSource == null)
-//            return;
+        if (bitmapSource == null)
+            return;
 
         GLES20.glClearColor(0.0f, 0.0f, 1.0f, 1.0f);
         GLES20.glClear(GLES20.GL_DEPTH_BUFFER_BIT | GLES20.GL_COLOR_BUFFER_BIT);
@@ -188,7 +201,7 @@ abstract public class BasePagerFragment extends Fragment implements GLSurfaceVie
     }
 
     void clearImage() {
-        bitmapSize = new Size(100, 100);
+        bitmapSize = new Size(1, 1);
         emptyBuffer = ByteBuffer.allocateDirect(bitmapSize.getWidth() * bitmapSize.getHeight() * 4).order(ByteOrder.nativeOrder()).asFloatBuffer();
         executeOnOpenGLThread(() -> {
             if (bitmapSource == null)
