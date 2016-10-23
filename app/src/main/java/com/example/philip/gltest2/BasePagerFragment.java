@@ -37,6 +37,7 @@ abstract public class BasePagerFragment extends Fragment implements GLSurfaceVie
     protected FloatBuffer offsetBuffer;
     String TAG = "BasePagerFragment";
     int currentProgram;
+    FloatBuffer emptyBuffer;
     private Size viewportSize;
     private Size bitmapSize;
     private Bitmap bitmap = null;
@@ -78,6 +79,8 @@ abstract public class BasePagerFragment extends Fragment implements GLSurfaceVie
         if (bitmap == null) {
             if (bitmapSource != null)
                 setImage(bitmapSource);
+            else
+                clearImage();
         }
     }
 
@@ -113,8 +116,8 @@ abstract public class BasePagerFragment extends Fragment implements GLSurfaceVie
             }
         }
 
-        if (bitmapSource == null)
-            return;
+//        if (bitmapSource == null)
+//            return;
 
         GLES20.glClearColor(0.0f, 0.0f, 1.0f, 1.0f);
         GLES20.glClear(GLES20.GL_DEPTH_BUFFER_BIT | GLES20.GL_COLOR_BUFFER_BIT);
@@ -184,6 +187,34 @@ abstract public class BasePagerFragment extends Fragment implements GLSurfaceVie
         }
     }
 
+    void clearImage() {
+        bitmapSize = new Size(100, 100);
+        emptyBuffer = ByteBuffer.allocateDirect(bitmapSize.getWidth() * bitmapSize.getHeight() * 4).order(ByteOrder.nativeOrder()).asFloatBuffer();
+        executeOnOpenGLThread(() -> {
+            if (bitmapSource == null)
+                GLES20.glTexImage2D(GLES20.GL_TEXTURE_2D, 0, GLES20.GL_RGBA, bitmapSize.getWidth(), bitmapSize.getHeight(), 0, GL10.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, emptyBuffer);
+        });
+
+        checkGlError("glTexImage2D");
+        float stepWidth = 1.0f / bitmapSize.getWidth();
+        float stepHeight = 1.0f / bitmapSize.getWidth();
+
+        float[] offsets = {
+                -stepWidth, -stepHeight,
+                -stepWidth, 0.0f,
+                -stepWidth, stepHeight,
+                0.0f, -stepHeight,
+                0.0f, 0.0f,
+                0.0f, stepHeight,
+                stepWidth, -stepHeight,
+                stepWidth, 0.0f,
+                stepWidth, stepHeight,
+        };
+
+        offsetBuffer = ByteBuffer.allocateDirect(offsets.length * 4).order(ByteOrder.nativeOrder()).asFloatBuffer();
+        offsetBuffer.put(offsets).position(0);
+    }
+
     int createProgram(String vertexSource, String fragmentSource) {
         int vertexShader = loadShader(GLES20.GL_VERTEX_SHADER, vertexSource);
         if (vertexShader == 0) {
@@ -249,8 +280,7 @@ abstract public class BasePagerFragment extends Fragment implements GLSurfaceVie
 
     void checkGlError(String op) {
         int error;
-        //noinspection LoopStatementThatDoesntLoop
-        while ((error = GLES20.glGetError()) != GLES20.GL_NO_ERROR) {
+        if ((error = GLES20.glGetError()) != GLES20.GL_NO_ERROR) {
             Log.e(TAG, op + ": glError " + GLUtils.getEGLErrorString(error));
             throw new RuntimeException(op + ": glError " + error);
         }
