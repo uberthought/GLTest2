@@ -1,16 +1,10 @@
 package com.example.philip.gltest2;
 
-import android.content.Context;
 import android.opengl.GLES20;
 
 import javax.microedition.khronos.egl.EGLConfig;
 
-class SobelEdgeRenderer extends RendererBase {
-
-    SobelEdgeRenderer(Context context) {
-        super(context);
-    }
-
+public class SobelEdgePagerFragment extends BasePagerFragment {
     void onSurfaceCreated(EGLConfig config) {
 
         int program;

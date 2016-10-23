@@ -1,14 +1,9 @@
 package com.example.philip.gltest2;
 
-import android.content.Context;
-
 import javax.microedition.khronos.egl.EGLConfig;
 
-class CopyRenderer extends RendererBase {
 
-    CopyRenderer(Context context) {
-        super(context);
-    }
+public class CopyPagerFragment extends BasePagerFragment {
 
     void onSurfaceCreated(EGLConfig config) {
 

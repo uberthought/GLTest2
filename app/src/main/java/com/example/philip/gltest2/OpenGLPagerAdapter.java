@@ -1,7 +1,7 @@
 package com.example.philip.gltest2;
 
+import android.annotation.SuppressLint;
 import android.net.Uri;
-import android.os.Bundle;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentStatePagerAdapter;
@@ -11,21 +11,31 @@ import java.util.Map;
 
 class OpenGLPagerAdapter extends FragmentStatePagerAdapter {
 
-    private final Map<Integer, OpenGLPagerFragment> mFragments = new HashMap<>();
-
+    @SuppressLint("UseSparseArrays")
+    private final Map<Integer, BasePagerFragment> mFragments = new HashMap<>();
+    private Uri bitmapSource;
     OpenGLPagerAdapter(FragmentManager fm) {
         super(fm);
     }
 
     @Override
     public Fragment getItem(int position) {
-        OpenGLPagerFragment fragment = mFragments.get(position);
+        BasePagerFragment fragment = mFragments.get(position);
         if (fragment == null) {
-            fragment = new OpenGLPagerFragment();
+            switch (shaderFromPosition(position)) {
+                default:
+                case Copy:
+                    fragment = new CopyPagerFragment();
+                    break;
+                case SobelEdge:
+                    fragment = new SobelEdgePagerFragment();
+                    break;
+                case GrayScale:
+                    fragment = new GrayScalePagerFragment();
+                    break;
+            }
 
-            Bundle bundle = new Bundle();
-            bundle.putInt("program", shaderFromPosition(position).ordinal());
-            fragment.setArguments(bundle);
+            fragment.setImage(bitmapSource);
 
             mFragments.put(position, fragment);
         }
@@ -35,7 +45,7 @@ class OpenGLPagerAdapter extends FragmentStatePagerAdapter {
 
     @Override
     public int getCount() {
-        return 3;
+        return Shader.values().length;
     }
 
     @Override
@@ -52,21 +62,28 @@ class OpenGLPagerAdapter extends FragmentStatePagerAdapter {
         }
     }
 
-    private GrayScaleRenderer.Shader shaderFromPosition(int position) {
+    private Shader shaderFromPosition(int position) {
         switch (position) {
             default:
             case 0:
-                return RendererBase.Shader.Copy;
+                return Shader.Copy;
             case 1:
-                return RendererBase.Shader.SobelEdge;
+                return Shader.SobelEdge;
             case 2:
-                return RendererBase.Shader.GrayScale;
+                return Shader.GrayScale;
         }
     }
 
     void setImage(Uri imageUri) {
-        for (OpenGLPagerFragment fragment : mFragments.values()) {
-            fragment.setImage(imageUri);
+        bitmapSource = imageUri;
+        for (BasePagerFragment fragment : mFragments.values()) {
+            fragment.setImage(bitmapSource);
         }
+    }
+
+    private enum Shader {
+        Copy,
+        SobelEdge,
+        GrayScale
     }
 }

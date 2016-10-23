@@ -1,15 +1,8 @@
 package com.example.philip.gltest2;
 
-import android.content.Context;
-
 import javax.microedition.khronos.egl.EGLConfig;
 
-class GrayScaleRenderer extends RendererBase {
-
-    GrayScaleRenderer(Context context) {
-        super(context);
-    }
-
+public class GrayScalePagerFragment extends BasePagerFragment {
     void onSurfaceCreated(EGLConfig config) {
         int program;
 
@@ -22,5 +15,5 @@ class GrayScaleRenderer extends RendererBase {
 
         currentProgram = program;
     }
-}
 
+}
