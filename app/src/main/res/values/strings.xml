@@ -1,6 +1,4 @@
 <resources>
     <string name="app_name">GLTest2</string>
     <string name="pick_image">Pick Image</string>
-    <string name="original">Original</string>
-    <string name="sobel_edge">Sobel Edge</string>
 </resources>

@@ -18,6 +18,8 @@ import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.ConcurrentLinkedDeque;
 
 import javax.microedition.khronos.egl.EGLConfig;
@@ -25,75 +27,71 @@ import javax.microedition.khronos.opengles.GL10;
 
 class OpenGLRenderer implements GLSurfaceView.Renderer {
 
-    private static String TAG = "OpenGLRenderer";
-    private final float[] _squareVertices = {
-            -1.0f, 1.0f,
-            1.0f, 1.0f,
-            -1.0f, -1.0f,
-            1.0f, -1.0f,
-    };
-    private final float[] _textureVertices = {
-            0.0f, 0.0f,
-            1.0f, 0.0f,
-            0.0f, 1.0f,
-            1.0f, 1.0f,
-    };
-    private float[] viewMatrix = new float[16];
+    private static final String TAG = "OpenGLRenderer";
+    private final Shader mCurrentShader;
+    private final Map<Shader, Integer> mShaderIds = new HashMap<>();
+    private final float[] viewMatrix = new float[16];
+    private final FloatBuffer _squareVerticesBuffer;
+    private final FloatBuffer _textureVerticesBuffer;
+    private final int[] textures = new int[1];
+    private final Context mContext;
+    private final ConcurrentLinkedDeque<Runnable> runnableDeque = new ConcurrentLinkedDeque<>();
     private Size viewportSize;
     private Size bitmapSize;
     private Bitmap bitmap;
-
-    private FloatBuffer _squareVerticesBuffer;
-    private FloatBuffer _textureVerticesBuffer;
     private FloatBuffer offsetBuffer;
-    private int _program;
-    private int _programSobelEdge;
-    private int _currentProgram;
-    private int[] textures = new int[1];
     private int _textureId;
     private int _aPositionHandle;
     private int _aTextureHandle;
-    private Context _context;
-    private ConcurrentLinkedDeque<Runnable> runableDeque = new ConcurrentLinkedDeque<>();
 
-    OpenGLRenderer(Context context) {
-        _context = context;
-        _squareVerticesBuffer = ByteBuffer.allocateDirect(_squareVertices.length * 4).order(ByteOrder.nativeOrder()).asFloatBuffer();
-        _squareVerticesBuffer.put(_squareVertices).position(0);
-        _textureVerticesBuffer = ByteBuffer.allocateDirect(_textureVertices.length * 4).order(ByteOrder.nativeOrder()).asFloatBuffer();
-        _textureVerticesBuffer.put(_textureVertices).position(0);
-    }
+    OpenGLRenderer(Context context, Shader shader) {
+        mContext = context;
+        mCurrentShader = shader;
 
-    void useCopyShader() {
-        _currentProgram = _program;
-    }
+        float[] squareVertices = {
+                -1.0f, 1.0f,
+                1.0f, 1.0f,
+                -1.0f, -1.0f,
+                1.0f, -1.0f,
+        };
+        _squareVerticesBuffer = ByteBuffer.allocateDirect(squareVertices.length * 4).order(ByteOrder.nativeOrder()).asFloatBuffer();
+        _squareVerticesBuffer.put(squareVertices).position(0);
 
-    void useSobelEdgeShader() {
-        _currentProgram = _programSobelEdge;
+        float[] textureVertices = {
+                0.0f, 0.0f,
+                1.0f, 0.0f,
+                0.0f, 1.0f,
+                1.0f, 1.0f,
+        };
+        _textureVerticesBuffer = ByteBuffer.allocateDirect(textureVertices.length * 4).order(ByteOrder.nativeOrder()).asFloatBuffer();
+        _textureVerticesBuffer.put(textureVertices).position(0);
     }
 
     public void onDrawFrame(GL10 glUnused) {
-        while (!runableDeque.isEmpty()) {
-            Runnable runnable = runableDeque.removeFirst();
+        while (!runnableDeque.isEmpty()) {
+            Runnable runnable = runnableDeque.removeFirst();
             try {
                 runnable.run();
             } catch (Exception e) {
                 e.printStackTrace();
             }
         }
+
+        int currentProgram = mShaderIds.get(mCurrentShader);
+
         GLES20.glClearColor(0.0f, 0.0f, 1.0f, 1.0f);
         GLES20.glClear(GLES20.GL_DEPTH_BUFFER_BIT | GLES20.GL_COLOR_BUFFER_BIT);
-        GLES20.glUseProgram(_currentProgram);
+        GLES20.glUseProgram(currentProgram);
         checkGlError("glUseProgram");
 
-        int offsetId = GLES20.glGetUniformLocation(_currentProgram, "offset");
+        int offsetId = GLES20.glGetUniformLocation(currentProgram, "offset");
         checkGlError("glGetUniformLocation offset");
         if (offsetId != -1) {
             GLES20.glUniform2fv(offsetId, 9, offsetBuffer);
             checkGlError("glUniform2fv offsetId");
         }
 
-        int modelViewMatId = GLES20.glGetUniformLocation(_currentProgram, "modelViewMat");
+        int modelViewMatId = GLES20.glGetUniformLocation(currentProgram, "modelViewMat");
         checkGlError("glGetUniformLocation modelViewMat");
         if (modelViewMatId != -1) {
             GLES20.glUniformMatrix4fv(modelViewMatId, 1, false, viewMatrix, 0);
@@ -137,40 +135,44 @@ class OpenGLRenderer implements GLSurfaceView.Renderer {
         String vertexShader = resourceToString(R.raw.vertexshader);
         String fragmentShader = resourceToString(R.raw.fragmentshader);
 
-        _program = createProgram(vertexShader, fragmentShader);
-        if (_program == 0) {
-            return;
-        }
+        int program;
+        program = createProgram(vertexShader, fragmentShader);
 
-        _aPositionHandle = GLES20.glGetAttribLocation(_program, "aPosition");
+        if (program == 0)
+            return;
+
+        _aPositionHandle = GLES20.glGetAttribLocation(program, "aPosition");
         checkGlError("glGetAttribLocation aPosition");
         if (_aPositionHandle == -1) {
             throw new RuntimeException("Could not get attrib location for aPosition");
         }
-        _aTextureHandle = GLES20.glGetAttribLocation(_program, "aTextureCoord");
+        _aTextureHandle = GLES20.glGetAttribLocation(program, "aTextureCoord");
         checkGlError("glGetAttribLocation aTextureCoord");
         if (_aTextureHandle == -1) {
             throw new RuntimeException("Could not get attrib location for aTextureCoord");
         }
 
-        _currentProgram = _program;
+        mShaderIds.put(Shader.Copy, program);
+
 
         String sobelEdgeShader = resourceToString(R.raw.sobeledgeshader);
-        _programSobelEdge = createProgram(vertexShader, sobelEdgeShader);
-        if (_programSobelEdge == 0) {
+        program = createProgram(vertexShader, sobelEdgeShader);
+        if (program == 0) {
             return;
         }
-
-        _aPositionHandle = GLES20.glGetAttribLocation(_programSobelEdge, "aPosition");
+        _aPositionHandle = GLES20.glGetAttribLocation(program, "aPosition");
         checkGlError("glGetAttribLocation aPosition");
         if (_aPositionHandle == -1) {
             throw new RuntimeException("Could not get attrib location for aPosition");
         }
-        _aTextureHandle = GLES20.glGetAttribLocation(_programSobelEdge, "aTextureCoord");
+        _aTextureHandle = GLES20.glGetAttribLocation(program, "aTextureCoord");
         checkGlError("glGetAttribLocation aTextureCoord");
         if (_aTextureHandle == -1) {
             throw new RuntimeException("Could not get attrib location for aTextureCoord");
         }
+
+        mShaderIds.put(Shader.SobelEdge, program);
+
 
         // Create our texture. This has to be done each time the surface is created.
         GLES20.glGenTextures(1, textures, 0);
@@ -185,14 +187,14 @@ class OpenGLRenderer implements GLSurfaceView.Renderer {
         GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_REPEAT);
 
         if (bitmap == null) {
-            bitmap = BitmapFactory.decodeResource(_context.getResources(), R.drawable.testimage);
+            bitmap = BitmapFactory.decodeResource(mContext.getResources(), R.drawable.testimage);
             setBitmap(bitmap);
         }
     }
 
     void setImage(Uri imageUri) {
         try {
-            bitmap = MediaStore.Images.Media.getBitmap(_context.getContentResolver(), imageUri);
+            bitmap = MediaStore.Images.Media.getBitmap(mContext.getContentResolver(), imageUri);
             setBitmap(bitmap);
         } catch (IOException e) {
             e.printStackTrace();
@@ -272,6 +274,7 @@ class OpenGLRenderer implements GLSurfaceView.Renderer {
 
     private void checkGlError(String op) {
         int error;
+        //noinspection LoopStatementThatDoesntLoop
         while ((error = GLES20.glGetError()) != GLES20.GL_NO_ERROR) {
             Log.e(TAG, op + ": glError " + GLUtils.getEGLErrorString(error));
             throw new RuntimeException(op + ": glError " + error);
@@ -280,12 +283,13 @@ class OpenGLRenderer implements GLSurfaceView.Renderer {
 
     private String resourceToString(int resourceId) {
         try {
-            Resources res = _context.getResources();
+            Resources res = mContext.getResources();
             InputStream in_s = res.openRawResource(resourceId);
 
             byte[] b = new byte[in_s.available()];
-            in_s.read(b);
-            return new String(b);
+            int count = in_s.read(b);
+            if (count > 0)
+                return new String(b);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -294,7 +298,12 @@ class OpenGLRenderer implements GLSurfaceView.Renderer {
     }
 
     private void executeOnOpenGLThread(Runnable func) {
-        runableDeque.addLast(func);
+        runnableDeque.addLast(func);
+    }
+
+    enum Shader {
+        Copy,
+        SobelEdge
     }
 }
 
