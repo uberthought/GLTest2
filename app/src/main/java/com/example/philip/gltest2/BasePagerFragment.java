@@ -34,11 +34,11 @@ abstract public class BasePagerFragment extends Fragment implements GLSurfaceVie
     private final float[] viewMatrix = new float[16];
     private final FloatBuffer mSquareVerticesBuffer;
     private final FloatBuffer mTextureVerticesBuffer;
-    protected Uri bitmapSource = null;
     protected FloatBuffer offsetBuffer;
     String TAG = "BasePagerFragment";
     int currentProgram;
     FloatBuffer emptyBuffer;
+    private String imageLocation;
     private Size viewportSize;
     private Size bitmapSize;
     private Bitmap bitmap = null;
@@ -63,19 +63,28 @@ abstract public class BasePagerFragment extends Fragment implements GLSurfaceVie
         mTextureVerticesBuffer.put(textureVertices).position(0);
     }
 
+    public Uri getBitmapSource() {
+        if (imageLocation == null)
+            return null;
+        return Uri.parse(imageLocation);
+    }
+
     @Override
     public void onAttach(Context context) {
         super.onAttach(context);
+
         MainActivity activity = (MainActivity) getActivity();
-        bitmapSource = activity.getImageUri();
+        imageLocation = activity.getImageLocation();
+        updateImage();
+
+        activity.setOnImageChangedListener(() -> {
+            imageLocation = activity.getImageLocation();
+            updateImage();
+        });
     }
 
     @Override
     public void onSurfaceCreated(GL10 gl, EGLConfig config) {
-
-        Bundle bundle = getArguments();
-        String foo = bundle.getString("bitmapSource");
-
 
         onSurfaceCreated(config);
 
@@ -89,11 +98,12 @@ abstract public class BasePagerFragment extends Fragment implements GLSurfaceVie
         GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_REPEAT);
         GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_REPEAT);
 
+//        clearImage();
         if (bitmap == null) {
-            if (bitmapSource != null)
-                setImage(bitmapSource);
-//            else
-//                clearImage();
+            if (imageLocation != null)
+                updateImage();
+            else
+                clearImage();
         }
     }
 
@@ -129,8 +139,8 @@ abstract public class BasePagerFragment extends Fragment implements GLSurfaceVie
             }
         }
 
-        if (bitmapSource == null)
-            return;
+//        if (bitmap == null)
+//            return;
 
         GLES20.glClearColor(0.0f, 0.0f, 1.0f, 1.0f);
         GLES20.glClear(GLES20.GL_DEPTH_BUFFER_BIT | GLES20.GL_COLOR_BUFFER_BIT);
@@ -165,16 +175,22 @@ abstract public class BasePagerFragment extends Fragment implements GLSurfaceVie
         GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4);
     }
 
-    void setImage(Uri imageUri) {
+    void updateImage() {
         try {
-            bitmapSource = imageUri;
-
             if (getContext() == null)
+                return;
+
+            Uri imageUri = getBitmapSource();
+
+            if (imageUri == null)
                 return;
 
             bitmap = MediaStore.Images.Media.getBitmap(getContext().getContentResolver(), imageUri);
 
-            executeOnOpenGLThread(() -> GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, bitmap, 0));
+            executeOnOpenGLThread(() -> {
+                GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, bitmap, 0);
+                GLUtils.texSubImage2D(GLES20.GL_TEXTURE_2D, 0, 0, 0, bitmap);
+            });
 
             bitmapSize = new Size(bitmap.getWidth(), bitmap.getHeight());
 
@@ -204,7 +220,7 @@ abstract public class BasePagerFragment extends Fragment implements GLSurfaceVie
         bitmapSize = new Size(1, 1);
         emptyBuffer = ByteBuffer.allocateDirect(bitmapSize.getWidth() * bitmapSize.getHeight() * 4).order(ByteOrder.nativeOrder()).asFloatBuffer();
         executeOnOpenGLThread(() -> {
-            if (bitmapSource == null)
+            if (imageLocation == null)
                 GLES20.glTexImage2D(GLES20.GL_TEXTURE_2D, 0, GLES20.GL_RGBA, bitmapSize.getWidth(), bitmapSize.getHeight(), 0, GL10.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, emptyBuffer);
         });
 
@@ -308,8 +324,8 @@ abstract public class BasePagerFragment extends Fragment implements GLSurfaceVie
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         ViewGroup rootView = (ViewGroup) inflater.inflate(R.layout.screen_slide_pager_fragment, container, false);
 
-        if (bitmapSource != null)
-            setImage(bitmapSource);
+        if (imageLocation != null)
+            updateImage();
 
         GLSurfaceView glSurfaceView = new GLSurfaceView(getContext());
         glSurfaceView.setEGLContextClientVersion(2);

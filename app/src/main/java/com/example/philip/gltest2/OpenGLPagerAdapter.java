@@ -1,8 +1,6 @@
 package com.example.philip.gltest2;
 
 import android.annotation.SuppressLint;
-import android.net.Uri;
-import android.os.Bundle;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentStatePagerAdapter;
@@ -14,7 +12,6 @@ class OpenGLPagerAdapter extends FragmentStatePagerAdapter {
 
     @SuppressLint("UseSparseArrays")
     private final Map<Integer, BasePagerFragment> mFragments = new HashMap<>();
-    private Uri bitmapSource;
     OpenGLPagerAdapter(FragmentManager fm) {
         super(fm);
     }
@@ -39,14 +36,14 @@ class OpenGLPagerAdapter extends FragmentStatePagerAdapter {
             mFragments.put(position, fragment);
         }
 
-        Bundle bundle = new Bundle();
-        if (bitmapSource != null)
-            bundle.putString("bitmapSource", bitmapSource.toString());
-        else
-            bundle.putString("bitmapSource", null);
-        fragment.setArguments(bundle);
-
-        fragment.setImage(bitmapSource);
+//        Bundle bundle = new Bundle();
+//        if (bitmapSource != null)
+//            bundle.putString("bitmapSource", bitmapSource.toString());
+//        else
+//            bundle.putString("bitmapSource", null);
+//        fragment.setArguments(bundle);
+//
+//        fragment.setImageLocation(bitmapSource);
 
         return fragment;
     }
@@ -79,13 +76,6 @@ class OpenGLPagerAdapter extends FragmentStatePagerAdapter {
                 return Shader.SobelEdge;
             case 2:
                 return Shader.GrayScale;
-        }
-    }
-
-    void setImage(Uri imageUri) {
-        bitmapSource = imageUri;
-        for (BasePagerFragment fragment : mFragments.values()) {
-            fragment.setImage(bitmapSource);
         }
     }
 
